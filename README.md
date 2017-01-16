@@ -11,4 +11,5 @@ Navigate to your library (My Account > My Libraries) and open the "Giveaways Lib
 I don't take any responsibility for damage caused by this software. Use this software at your own risk.
 
 ## Release Notes
+*1.0.1* Improved error handling
 *1.0.0* Initial Release

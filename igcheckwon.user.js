@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         IndieGala: Check giveaways if won
-// @version      1.0.0
+// @version      1.0.1
 // @description  Check won giveaways the fast & convenient way
 // @author       Hafas (https://github.com/Hafas/)
 // @match        https://www.indiegala.com/profile*
@@ -56,12 +56,14 @@
     return $.ajax({
       url: "/giveaways/library_completed",
       dataType: "json"
-    }, function (error) {
-      //retry
+    }).then(null, function (error) {
+      //retry in 10s
       return $.Deferred(function (d) {
         setTimeout(function () {
-          d.resolve();
-        }, 1000);
+          getCompleted().then(function (value) {
+            d.resolve(value);
+          });
+        }, 10000);
       });
     });
   }
@@ -85,11 +87,10 @@
         entry_id: entryId
       })
     }).then(function (payload) {
-      console.log(entryId, payload);
       return payload;
     }, function () {
       //resolve errors. They'll be rechecked later.
-      return $.Deferred.resolve({error: true});
+      return $.Deferred().resolve({error: true});
     });
   }
 
@@ -97,7 +98,7 @@
     return function () {
       for (var i = 0; i < arguments.length; ++i) {
         var payload = arguments[i];
-        //errors can be ignored - the will be retried on the next page
+        //errors can be ignored - they will be retried on the next page
         if (!payload.error) {
           var isWin = payload.is_winner;
           if (isWin === "true") {

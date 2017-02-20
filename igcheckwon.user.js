@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         IndieGala: Check giveaways if won
-// @version      1.0.1
+// @version      1.1.0
 // @description  Check won giveaways the fast & convenient way
 // @author       Hafas (https://github.com/Hafas/)
 // @match        https://www.indiegala.com/profile*
@@ -12,26 +12,11 @@
   var $myButton = $("button", $completedTab).first();
   activateButton();
   $myButton.on("click", function () {
-    var summary = {
-      entries : 0,
-      blanks: 0,
-      wins: 0
-    };
     deactivateButton();
-    (function checkPage () {
-      return getCompleted().then(function (payload) {
-        var html = payload.html;
-        var entryIds = getEntryIds(html);
-        //update the inner DOM
-        $(".giveaways-list-cont", $completedTab).html(html);
-        if (entryIds.length === 0) {
-          conclude(summary);
-          activateButton();
-        } else {
-          return checkAllIfWon(entryIds).then(updateSummary(summary)).then(checkPage);
-        }
-      });
-    })();
+    checkAllIfWon().then(function (html) {
+      printSummary(html);
+      activateButton();
+    });
   });
 
   function activateButton () {
@@ -58,64 +43,30 @@
       dataType: "json"
     }).then(null, function (error) {
       //retry in 10s
-      return $.Deferred(function (d) {
-        setTimeout(function () {
-          getCompleted().then(function (value) {
-            d.resolve(value);
-          });
-        }, 10000);
-      });
+      return delay(getCompleted, 10000);
     });
-  }
-
-  function getEntryIds (html) {
-    return $(".winner-ticket-cont input", $(html)).map(function (i, input) {
-      return input.value;
-    }).toArray();
   }
 
   function checkAllIfWon (entryIds) {
-    return $.when.apply($, entryIds.map(checkIfWon));
-  }
-
-  function checkIfWon (entryId) {
     return $.ajax({
-      type: "POST",
-      url: "/giveaways/check_if_won",
-      dataType: "json",
-      data: JSON.stringify({
-        entry_id: entryId
-      })
-    }).then(function (payload) {
-      return payload;
-    }, function () {
-      //resolve errors. They'll be rechecked later.
-      return $.Deferred().resolve({error: true});
+      url: "/giveaways/check_if_won_all"
+    }).then(null, function () {
+      //retry in 10s
+      return delay(checkAllIfWon, 10000);
     });
   }
 
-  function updateSummary (summary) {
-    return function () {
-      for (var i = 0; i < arguments.length; ++i) {
-        var payload = arguments[i];
-        //errors can be ignored - they will be retried on the next page
-        if (!payload.error) {
-          var isWin = payload.is_winner;
-          if (isWin === "true") {
-            summary.entries++;
-            summary.wins++;
-          } else if (isWin === "false") {
-            summary.entries++;
-            summary.blanks++;
-          } else {
-            console.error("unexpected response:", isWin);
-          }
-        }
-      }
-    };
+  function printSummary (html) {
+    alert($(html).text().trim());
   }
 
-  function conclude (summary) {
-    alert("IG Check Won: " + summary.entries + " entries checked. " + summary.wins + " wins. " + summary.blanks + " blanks.");
+  function delay (fn, timeout) {
+    return $.Deferred(function (d) {
+      setTimeout(function () {
+        fn().then(function (value) {
+          d.resolve(value);
+        });
+      }, timeout);
+    });
   }
 })();
